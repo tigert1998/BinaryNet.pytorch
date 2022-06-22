@@ -69,7 +69,7 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, do_bntan=True):
         super(Bottleneck, self).__init__()
         self.conv1 = BinarizeConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -78,13 +78,14 @@ class Bottleneck(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = BinarizeConv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.bn4 = nn.BatchNorm2d(planes * 4)
         self.tanh = nn.Hardtanh(inplace=True)
         self.downsample = downsample
         self.stride = stride
+        self.do_bntan = do_bntan
 
     def forward(self, x):
         residual = x
-        import pdb; pdb.set_trace()
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.tanh(out)
@@ -101,8 +102,8 @@ class Bottleneck(nn.Module):
 
         out += residual
         if self.do_bntan:
-            out = self.bn2(out)
-            out = self.tanh2(out)
+            out = self.bn4(out)
+            out = self.tanh(out)
 
         return out
 
@@ -159,7 +160,11 @@ class ResNet_imagenet(ResNet):
         self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.tanh = nn.Hardtanh(inplace=True)
+        self.bn2 = nn.BatchNorm1d(512 * block.expansion)
+        self.bn3 = nn.BatchNorm1d(1000)
+        self.tanh1 = nn.Hardtanh(inplace=True)
+        self.tanh2 = nn.Hardtanh(inplace=True)
+        self.logsoftmax = nn.LogSoftmax(dim=-1)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
@@ -199,7 +204,7 @@ class ResNet_cifar10(ResNet):
         self.avgpool = nn.AvgPool2d(8)
         self.bn2 = nn.BatchNorm1d(64*self.inflate)
         self.bn3 = nn.BatchNorm1d(10)
-        self.logsoftmax = nn.LogSoftmax()
+        self.logsoftmax = nn.LogSoftmax(dim=-1)
         self.fc = BinarizeLinear(64*self.inflate, num_classes)
 
         init_model(self)
