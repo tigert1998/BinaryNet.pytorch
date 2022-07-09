@@ -188,7 +188,7 @@ class ResNet_cifar10(ResNet):
     def __init__(self, num_classes=10,
                  block=BasicBlock, depth=18):
         super(ResNet_cifar10, self).__init__()
-        self.inflate = 5
+        self.inflate = 1
         self.inplanes = 16*self.inflate
         n = int((depth - 2) / 6)
         self.conv1 = BinarizeConv2d(3, 16*self.inflate, kernel_size=3, stride=1, padding=1,
